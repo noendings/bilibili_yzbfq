@@ -210,17 +210,20 @@ const Header = (props: {
         </ul>
       </div>
 
-      {/* 影子跟练模式按钮 */}
-      <button
-        className={classNames('btn btn-xs mr-1', shadowMode ? 'btn-error' : 'btn-primary')}
-        title={shadowMode ? '跟练模式中' : '开启跟练模式'}
-        onClick={(e: any) => {
-          e.stopPropagation()
-          onShadowModeToggle(e)
-        }}
-      >
-        {shadowMode ? '⏹ 跟练中' : '🎵 跟练'}
-      </button>
+      {/* 快捷键提示区 */}
+      <div className='dropdown dropdown-end'>
+        <label tabIndex={0} className={classNames('btn btn-xs mr-1', shadowMode ? 'btn-ghost text-primary' : 'btn-ghost text-gray-400')} title='快捷键'>
+          <span className='text-[11px]'>←→</span>
+        </label>
+        <ul tabIndex={0} className='dropdown-content z-[100] menu p-2 shadow bg-base-100 rounded-box w-52'>
+          <li className='menu-title px-2 py-1 text-xs text-primary font-bold'>影子跟练 · 快捷键</li>
+          <li><a className='flex items-center gap-3'><kbd className='kbd kbd-sm'>←</kbd><span>当前句无限循环</span></a></li>
+          <li><a className='flex items-center gap-3'><kbd className='kbd kbd-sm'>→</kbd><span>当前句播完暂停</span></a></li>
+          <li><a className='flex items-center gap-3'><kbd className='kbd kbd-sm'>↑</kbd><span>上一句（退出特殊模式）</span></a></li>
+          <li><a className='flex items-center gap-3'><kbd className='kbd kbd-sm'>↓</kbd><span>下一句（退出特殊模式）</span></a></li>
+          <li><a className='flex items-center gap-3'><kbd className='kbd kbd-sm'>Esc</kbd><span>取消特殊模式</span></a></li>
+        </ul>
+      </div>
       {shadowMode && (
         <div className='text-xs desc mr-1'>
           <span>←无限循环</span>

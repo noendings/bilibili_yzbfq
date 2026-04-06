@@ -41,7 +41,7 @@ const ShadowModeHelp = () => {
       <div className='text-xs text-center mb-3 p-2 bg-primary/10 rounded'>
         ←无限循环：当前句反复播放<br/>
         →播完暂停：视频播放当前句后暂停，可自己跟读<br/>
-        其他任意键退出当前模式
+        Esc/↑↓ 取消当前特殊模式
       </div>
 
       <div className='space-y-2 text-sm'>
@@ -66,28 +66,8 @@ const ShadowModeHelp = () => {
         </div>
 
         <div className='flex items-center gap-3'>
-          <kbd className='kbd kbd-sm bg-base-300'>W</kbd>
-          <span>增加循环次数</span>
-        </div>
-
-        <div className='flex items-center gap-3'>
-          <kbd className='kbd kbd-sm bg-base-300'>S</kbd>
-          <span>减少循环次数</span>
-        </div>
-
-        <div className='flex items-center gap-3'>
-          <kbd className='kbd kbd-sm bg-base-300'>M</kbd>
-          <span>迷你模式</span>
-        </div>
-
-        <div className='flex items-center gap-3'>
           <kbd className='kbd kbd-sm bg-base-300'>Esc</kbd>
-          <span>退出跟练模式</span>
-        </div>
-
-        <div className='flex items-center gap-3'>
-          <kbd className='kbd kbd-sm bg-base-300'>?</kbd>
-          <span>显示此帮助</span>
+          <span>取消特殊模式</span>
         </div>
       </div>
 

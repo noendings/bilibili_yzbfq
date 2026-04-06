@@ -2,7 +2,7 @@ import {useEffect} from 'react'
 import {useMemoizedFn} from 'ahooks/es'
 import {useAppDispatch, useAppSelector} from './redux'
 import useSubtitle from './useSubtitle'
-import {setInputting, setShadowMode, setShadowCurIdx, setShadowLoopCount, setShadowModeType, setTempData, setShadowSpecialMode} from '../redux/envReducer'
+import {setInputting, setShadowCurIdx, setShadowLoopCount, setShadowModeType, setTempData, setShadowSpecialMode} from '../redux/envReducer'
 import {SHADOW_MODE_LOOP_MIN, SHADOW_MODE_LOOP_MAX} from '../consts/const'
 import {useMessage} from './useMessageService'
 
@@ -157,10 +157,11 @@ const useKeyService = () => {
         }
       }
 
-      // W 增加循环次数
-      if (e.key === 'w' || e.key === 'W') {
+      // W 增加循环次数（仅在特殊子模式下生效）
+      if ((e.key === 'w' || e.key === 'W') && shadowSpecialMode !== 'none') {
         prevent = true
-        const newCount = Math.min(shadowLoopCount + 1, SHADOW_MODE_LOOP_MAX)
+        const current = shadowLoopCount === -1 ? SHADOW_MODE_LOOP_MAX : shadowLoopCount
+        const newCount = Math.min(current + 1, SHADOW_MODE_LOOP_MAX)
         const finalCount = newCount === SHADOW_MODE_LOOP_MAX ? -1 : newCount
         dispatch(setShadowLoopCount(finalCount))
         if (shadowCurIdx !== null && data) {
@@ -177,8 +178,8 @@ const useKeyService = () => {
         }
       }
 
-      // S 减少循环次数
-      if (e.key === 's' || e.key === 'S') {
+      // S 减少循环次数（仅在特殊子模式下生效）
+      if ((e.key === 's' || e.key === 'S') && shadowSpecialMode !== 'none') {
         prevent = true
         const current = shadowLoopCount === -1 ? SHADOW_MODE_LOOP_MAX : shadowLoopCount
         const newCount = Math.max(current - 1, SHADOW_MODE_LOOP_MIN)
@@ -197,22 +198,15 @@ const useKeyService = () => {
         }
       }
 
-      // Esc 退出跟练模式
-      if (e.key === 'Escape') {
+      // Esc：只取消当前特殊子模式，不退出跟练
+      if (e.key === 'Escape' && shadowSpecialMode !== 'none') {
         prevent = true
-        dispatch(setShadowMode(false))
-        dispatch(setTempData({shadowShowHelp: false}))
-        sendInject(null, 'SHADOW_EXIT', {})
+        dispatch(setShadowSpecialMode('none'))
+        sendInject(null, 'SHADOW_LOOP', { enabled: false, startTime: 0, endTime: 0, loopCount: 0 })
       }
 
-      // M 切换迷你模式
-      if (e.key === 'm' || e.key === 'M') {
-        prevent = true
-        dispatch(setTempData({shadowMiniMode: true}))
-      }
-
-      // ? 显示帮助
-      if (e.key === '?') {
+      // ? 显示帮助（仅在跟练模式下生效）
+      if (e.key === '?' && shadowMode) {
         prevent = true
         dispatch(setTempData({shadowShowHelp: true}))
       }
