@@ -1,0 +1,46 @@
+---
+description: 插件构建与发布流程规范
+alwaysApply: true
+---
+
+# 插件构建与发布流程规范
+
+## 强制执行：每次代码修改后
+
+完成任何 src/ 代码修改后，必须按顺序执行以下步骤：
+
+### 1. 构建 dist
+
+在项目根目录执行：
+
+```bash
+npx pnpm build
+```
+
+构建成功（exit code 0）后继续下一步。如果有 TypeScript 错误，必须先修复。
+
+### 2. 提交 git
+
+```bash
+git add <改动的文件>
+git commit -m "<描述>"
+```
+
+### 3. 推送到 GitHub
+
+```bash
+git push
+```
+
+如果推送失败（网络问题），重试一次。
+
+### 4. 确认完成
+
+向用户确认 dist 已更新、已推送成功。
+
+## 注意事项
+
+- `dist/` 目录在 `.gitignore` 中，不跟踪，但本地构建产物用于测试
+- 版本号查看：`dist/manifest.json` 的 `version` 字段
+- 如果修改了类型定义（如 `message-typings.d.ts`），确保构建无 TS 错误
+- 推送时设置代理：`git config --global http.proxy http://127.0.0.1:7897`
