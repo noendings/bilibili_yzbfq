@@ -374,10 +374,6 @@ const debug = (...args: any[]) => {
           top: saved.top ?? MASK_DEFAULT_TOP,
           left: saved.left ?? MASK_DEFAULT_LEFT,
         }
-        // 如果已经设置过，显示遮罩
-        if (saved.hasBeenSet) {
-          showMask()
-        }
       }
     } catch (e) {
       console.error('加载遮罩设置失败:', e)
@@ -623,14 +619,13 @@ const debug = (...args: any[]) => {
         // 显示遮罩
         runtime.maskVisible = true
         showMask(settings)
-        // 保存设置
+        // 保存设置，标记已设置过（遮罩已显式打开过）
         await saveMaskSettings(runtime.maskSettings, true)
       } else {
         // 隐藏遮罩
         runtime.maskVisible = false
         hideMask()
-        // 保存设置，标记已设置过
-        await saveMaskSettings(runtime.maskSettings, true)
+        // 隐藏时不改变 hasBeenSet 状态（保持上次显式打开的状态）
       }
     },
 
