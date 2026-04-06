@@ -60,6 +60,7 @@ const useKeyService = () => {
     // ========== 影子跟练模式快捷键 ==========
     if (shadowMode && !cursorInInput) {
       const bodyCount = data?.body.length ?? 0
+      const effectiveIdx = shadowCurIdx ?? curIdx ?? 0
 
       // 退出特殊模式：左键、右键本身不触发退出（它们是启动特殊模式的键）
       const isArrowLeft = e.key === 'ArrowLeft'
@@ -74,8 +75,7 @@ const useKeyService = () => {
 
       // ← 左键：启动当前句无限循环
       if (isArrowLeft) {
-        const effectiveIdx = shadowCurIdx ?? curIdx
-        if (effectiveIdx != null && effectiveIdx >= 0) {
+        if (effectiveIdx >= 0) {
           prevent = true
           const item = data!.body[effectiveIdx]
           const nextItem = data!.body[effectiveIdx + 1]
@@ -96,8 +96,7 @@ const useKeyService = () => {
 
       // → 右键：启动当前句播完暂停（one-shot echo）
       if (isArrowRight) {
-        const effectiveIdx = shadowCurIdx ?? curIdx
-        if (effectiveIdx != null && effectiveIdx >= 0) {
+        if (effectiveIdx >= 0) {
           prevent = true
           const item = data!.body[effectiveIdx]
           const nextItem = data!.body[effectiveIdx + 1]
@@ -119,8 +118,7 @@ const useKeyService = () => {
 
       // ↑ 上一句
       if (e.key === 'ArrowUp') {
-        const effectiveIdx = shadowCurIdx ?? curIdx
-        if (effectiveIdx != null && effectiveIdx > 0) {
+        if (effectiveIdx > 0) {
           prevent = true
           const newIdx = effectiveIdx - 1
           dispatch(setShadowCurIdx(newIdx))
@@ -142,8 +140,7 @@ const useKeyService = () => {
 
       // ↓ 下一句
       if (e.key === 'ArrowDown') {
-        const effectiveIdx = shadowCurIdx ?? curIdx
-        if (effectiveIdx != null && effectiveIdx < bodyCount - 1) {
+        if (effectiveIdx < bodyCount - 1) {
           prevent = true
           const newIdx = effectiveIdx + 1
           dispatch(setShadowCurIdx(newIdx))
@@ -166,12 +163,11 @@ const useKeyService = () => {
       // W 增加循环次数（仅在特殊子模式下生效）
       if ((e.key === 'w' || e.key === 'W') && shadowSpecialMode !== 'none') {
         prevent = true
-        const effectiveIdx = shadowCurIdx ?? curIdx
         const current = shadowLoopCount === -1 ? SHADOW_MODE_LOOP_MAX : shadowLoopCount
         const newCount = Math.min(current + 1, SHADOW_MODE_LOOP_MAX)
         const finalCount = newCount === SHADOW_MODE_LOOP_MAX ? -1 : newCount
         dispatch(setShadowLoopCount(finalCount))
-        if (effectiveIdx != null && data) {
+        if (effectiveIdx >= 0 && data) {
           const item = data.body[effectiveIdx]
           const nextItem = data.body[effectiveIdx + 1]
           sendInject(null, 'SHADOW_LOOP', {
@@ -188,11 +184,10 @@ const useKeyService = () => {
       // S 减少循环次数（仅在特殊子模式下生效）
       if ((e.key === 's' || e.key === 'S') && shadowSpecialMode !== 'none') {
         prevent = true
-        const effectiveIdx = shadowCurIdx ?? curIdx
         const current = shadowLoopCount === -1 ? SHADOW_MODE_LOOP_MAX : shadowLoopCount
         const newCount = Math.max(current - 1, SHADOW_MODE_LOOP_MIN)
         dispatch(setShadowLoopCount(newCount))
-        if (effectiveIdx != null && data) {
+        if (effectiveIdx >= 0 && data) {
           const item = data.body[effectiveIdx]
           const nextItem = data.body[effectiveIdx + 1]
           sendInject(null, 'SHADOW_LOOP', {

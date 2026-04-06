@@ -47,19 +47,28 @@ const mockEnvState = (overrides: Partial<{
 describe('useKeyService ←→ 快捷键 fallback 逻辑', () => {
 
   /**
-   * 根因：shadowCurIdx 初始值为 null，
-   * ←→ 的触发条件要求 shadowCurIdx !== null，
-   * 但从未用 curIdx 作 fallback，导致始终不触发。
+   * 根因：shadowCurIdx 初始值为 null，curIdx 初始值也为 undefined。
+   * ←→ 的触发条件要求 effectiveIdx >= 0，
+   * 如果只用 shadowCurIdx ?? curIdx，当两者都为 null/undefined 时，
+   * 短路求值后条件为 false，导致始终不触发。
    *
-   * 修复方案：←→ 时，如果 shadowCurIdx === null，
-   * 则取 curIdx 作为 effectiveIdx。
+   * 修复方案：shadowCurIdx ?? curIdx ?? 0，
+   * 当两者都为 null/undefined 时，fallback 到 0（第一句）
    */
+
+  it('shadowCurIdx=null 且 curIdx=undefined 时，← 应 fallback 到 0 触发无限循环', () => {
+    const state = mockEnvState({ shadowCurIdx: null, curIdx: undefined as unknown as number })
+
+    // 新逻辑：shadowCurIdx ?? curIdx ?? 0
+    const effectiveIdx = (state.env.shadowCurIdx ?? state.env.curIdx ?? 0) as number
+
+    expect(effectiveIdx).toBe(0)
+  })
 
   it('shadowCurIdx=null 时，← 应使用 curIdx(1) 触发无限循环', () => {
     const state = mockEnvState({ shadowCurIdx: null, curIdx: 1 })
 
-    // 模拟 ← 键按下时的索引计算逻辑
-    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx
+    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx ?? 0
 
     expect(effectiveIdx).toBe(1)
   })
@@ -67,7 +76,7 @@ describe('useKeyService ←→ 快捷键 fallback 逻辑', () => {
   it('shadowCurIdx=2 时，→ 应使用 shadowCurIdx(2) 触发播完暂停', () => {
     const state = mockEnvState({ shadowCurIdx: 2, curIdx: 0 })
 
-    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx
+    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx ?? 0
 
     expect(effectiveIdx).toBe(2)
   })
@@ -80,39 +89,38 @@ describe('useKeyService ←→ 快捷键 fallback 逻辑', () => {
     expect(isInfiniteMode).toBe(true)
   })
 
-  it('shadowSpecialMode=none 时，↑↓ 会改变 shadowCurIdx', () => {
-    // ↑↓ 在 shadowSpecialMode=none 时，执行后会 dispatch(setShadowCurIdx(newIdx))
-    // 所以首次按 ← 时，shadowCurIdx 已经被 ↑↓ 初始化为有效值
-    // 这是 ↑↓ 能工作的原因——它们自己初始化了 shadowCurIdx
-    const state = mockEnvState({ shadowCurIdx: null, shadowSpecialMode: 'none' })
+  it('curIdx=1 时，按↑应跳到第0句', () => {
+    const state = mockEnvState({ shadowCurIdx: null, curIdx: 1, shadowSpecialMode: 'none' })
 
-    // 模拟 ↑ 被按后的新索引
-    const newIdx = (state.env.shadowCurIdx ?? (state.env.curIdx ?? 0)) - 1
+    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx ?? 0
+    const newIdx = effectiveIdx - 1 // ↑
 
     expect(newIdx).toBe(0)
+    expect(newIdx >= 0).toBe(true) // 能通过 >= 0 检查
   })
 
   it('shadowCurIdx 未初始化时，←→ 不应被跳过', () => {
     const state = mockEnvState({ shadowCurIdx: null, curIdx: 1 })
 
+    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx ?? 0
+
     // 旧逻辑：shadowCurIdx !== null 才触发 → 跳过
     const oldLogicShouldTrigger = state.env.shadowCurIdx !== null
 
     // 新逻辑：用 curIdx 作 fallback → 触发
-    const newLogicShouldTrigger = (state.env.shadowCurIdx ?? state.env.curIdx) !== null
-      && (state.env.shadowCurIdx ?? state.env.curIdx) >= 0
+    const newLogicShouldTrigger = effectiveIdx >= 0
 
     expect(oldLogicShouldTrigger).toBe(false) // 旧逻辑：跳过（BUG）
     expect(newLogicShouldTrigger).toBe(true)   // 新逻辑：触发（修复）
   })
 
-  it('curIdx 也未定义时，←→ 不应触发（防止越界）', () => {
+  it('curIdx 也未定义时，←→ 应 fallback 到 0（防止越界）', () => {
     const state = mockEnvState({ shadowCurIdx: null, curIdx: undefined as unknown as number })
 
-    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx
+    const effectiveIdx = state.env.shadowCurIdx ?? state.env.curIdx ?? 0
 
-    // undefined ?? undefined = undefined，>= 0 判断为 false
-    expect(effectiveIdx == null).toBe(true)
+    expect(effectiveIdx).toBe(0) // fallback 到 0
+    expect(effectiveIdx >= 0).toBe(true) // 能通过 >= 0 检查
   })
 
   it('数据为空时，←→ 不应触发', () => {
@@ -129,7 +137,7 @@ describe('useKeyService ←→ 触发条件边界', () => {
   it('shadowMode=false 时，←→ 不应触发', () => {
     const state = mockEnvState({ shadowMode: false, shadowCurIdx: null, curIdx: 1 })
 
-    const shouldTrigger = state.env.shadowMode && (state.env.shadowCurIdx ?? state.env.curIdx) !== null
+    const shouldTrigger = state.env.shadowMode && ((state.env.shadowCurIdx ?? state.env.curIdx ?? 0) >= 0)
 
     expect(shouldTrigger).toBe(false)
   })
@@ -140,7 +148,6 @@ describe('useKeyService ←→ 触发条件边界', () => {
       shadowSpecialMode: 'infinite',
     })
 
-    // 已在无限循环中，← 只是再次跳转，不需要重设 specialMode
     const isAlreadyInfinite = state.env.shadowSpecialMode === 'infinite'
 
     expect(isAlreadyInfinite).toBe(true)
