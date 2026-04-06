@@ -12,14 +12,11 @@ import {
   setTempData
 } from '../redux/envReducer'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
-import {
-  AiOutlineAim,
-  AiOutlineCloseCircle,
-  FaRegArrowAltCircleDown,
-  IoWarning,
-  MdExpand,
-  RiTranslate
-} from 'react-icons/all'
+import {AiOutlineAim, AiOutlineCloseCircle} from 'react-icons/ai'
+import {FaRegArrowAltCircleDown} from 'react-icons/fa'
+import {IoWarning} from 'react-icons/io5'
+import {MdExpand, MdSettings} from 'react-icons/md'
+import {RiTranslate} from 'react-icons/ri'
 import classNames from 'classnames'
 import toast from 'react-hot-toast'
 import SegmentCard from './SegmentCard'
@@ -31,7 +28,6 @@ import {
   SUMMARIZE_ALL_THRESHOLD,
   TITLE_HEIGHT
 } from '../consts/const'
-import { FaClipboardList } from 'react-icons/fa'
 import useTranslate from '../hooks/useTranslate'
 import { openUrl } from '../utils/env_util'
 import useKeyService from '../hooks/useKeyService'
@@ -40,6 +36,9 @@ import { v4 } from 'uuid'
 import RateExtension from '../components/RateExtension'
 import ApiKeyReminder from './ApiKeyReminder'
 import { useMessaging } from '../message'
+import MiniMode from './MiniMode'
+import ShadowModeHelp from './ShadowModeHelp'
+import MaskSettings from './MaskSettings'
 
 const Body = () => {
   const dispatch = useAppDispatch()
@@ -66,7 +65,23 @@ const Body = () => {
   // const fontSize = useAppSelector(state => state.env.envData.fontSize)
   const searchText = useAppSelector(state => state.env.searchText)
   const asks = useAppSelector(state => state.env.asks)
-  const { disconnected } = useMessaging(DEFAULT_USE_PORT)
+  const { disconnected, sendInject } = useMessaging(DEFAULT_USE_PORT)
+
+  // 影子跟练模式状态
+  const shadowMode = useAppSelector(state => state.env.shadowMode)
+  const shadowCurIdx = useAppSelector(state => state.env.shadowCurIdx)
+  const shadowLoopProgress = useAppSelector(state => state.env.shadowLoopProgress)
+  const shadowStartTime = useAppSelector(state => state.env.shadowStartTime)
+  const data = useAppSelector(state => state.env.data)
+
+  // 进度条计算
+  const totalItems = data?.body.length ?? 0
+  const progressPercent = totalItems > 0 ? Math.round((shadowLoopProgress / totalItems) * 100) : 0
+  const progressText = shadowLoopProgress > 0
+    ? `${shadowLoopProgress}/${totalItems} (${progressPercent}%)`
+    : ''
+  // 学习时长计算
+  const learningMinutes = shadowStartTime ? Math.floor((Date.now() - shadowStartTime) / 1000 / 60) : 0
   // const recommendIdx = useMemo(() => random(0, 3), [])
   const showSearchInput = useMemo(() => {
     return (segments != null && segments.length > 0) && (envData.searchEnabled ? envData.searchEnabled : (envData.askEnabled ?? ASK_ENABLED_DEFAULT))
@@ -226,6 +241,23 @@ const Body = () => {
         <MdExpand className={classNames('cursor-pointer', foldAll ? 'text-accent' : '')} onClick={onFoldAll}
           title='展开/折叠全部' />}
     </div>
+
+    {/* 影子跟练模式进度条 */}
+    {shadowMode && shadowLoopProgress > 0 && (
+      <div className='flex justify-center items-center gap-2 px-4 py-1 bg-primary/10 border-t border-b border-primary/20'>
+        <span className='text-xs'>🎵</span>
+        <div className='flex-1 max-w-[200px]'>
+          <progress className='progress progress-primary w-full' value={shadowLoopProgress} max={totalItems}></progress>
+        </div>
+        <span className='text-xs font-medium'>{progressText}</span>
+        {learningMinutes > 0 && (
+          <span className='text-xs desc'>
+            {learningMinutes}分钟
+          </span>
+        )}
+      </div>
+    )}
+
     <div className='flex justify-center'>
       <div className='tabs'>
         <a className={classNames('tab tab-sm tab-bordered', !compact && 'tab-active')}
@@ -239,10 +271,23 @@ const Body = () => {
         onClick={toggleAutoTranslateCallback}>
         <RiTranslate className={autoTranslate ? 'text-accent' : ''} />
       </div>}
-      {summarizeEnable &&
+      {/* TODO: 总结全部功能暂不显示，后续恢复 */}
+      {/* {summarizeEnable &&
         <div className='tooltip tooltip-left cursor-pointer z-[100] ml-2' data-tip='总结全部' onClick={onSummarizeAll}>
           <FaClipboardList />
-        </div>}
+        </div>} */}
+      {/* 设置按钮 */}
+      <div className='tooltip tooltip-left cursor-pointer z-[100] ml-2' data-tip='设置' onClick={() => {
+        // 打开选项页面
+        if (envData.sidePanel) {
+          // 在 sidePanel 中，可以发送消息给 background 打开选项页面
+          chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' })
+        } else {
+          chrome.runtime.openOptionsPage()
+        }
+      }}>
+        <MdSettings />
+      </div>
       {noVideo && <div className='tooltip tooltip-left ml-2' data-tip='当前浏览器不支持视频跳转'>
         <IoWarning className='text-warning' />
       </div>}
@@ -280,7 +325,7 @@ const Body = () => {
     <div ref={bodyRef} onWheel={onWheel}
       className={classNames('flex flex-col gap-1.5 overflow-y-auto select-text scroll-smooth', floatKeyPointsSegIdx != null && 'pb-[100px]')}
       style={{
-        height: `${totalHeight - HEADER_HEIGHT - TITLE_HEIGHT - (showSearchInput ? SEARCH_BAR_HEIGHT : 0)}px`
+        height: `${totalHeight - HEADER_HEIGHT - TITLE_HEIGHT - (showSearchInput ? SEARCH_BAR_HEIGHT : 0) - (shadowMode && shadowLoopProgress > 0 ? 28 : 0)}px`
       }}
     >
       {/* asks */}
@@ -302,6 +347,13 @@ const Body = () => {
 
       <RateExtension />
     </div>
+
+    {/* 影子跟练模式组件 */}
+    <MiniMode />
+    <ShadowModeHelp />
+
+    {/* 遮罩设置组件 */}
+    <MaskSettings />
   </div>
 }
 

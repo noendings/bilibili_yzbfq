@@ -14,6 +14,9 @@ import {
   MODELS,
   PROMPT_DEFAULTS,
   PROMPT_TYPES,
+  SHADOW_USER_BUFFER_DEFAULT,
+  SHADOW_USER_BUFFER_MAX,
+  SHADOW_USER_BUFFER_MIN,
   SUMMARIZE_LANGUAGE_DEFAULT,
   TRANSLATE_FETCH_DEFAULT,
   TRANSLATE_FETCH_MAX,
@@ -21,7 +24,7 @@ import {
   TRANSLATE_FETCH_STEP,
   WORDS_RATE,
 } from '../consts/const'
-import {IoWarning} from 'react-icons/all'
+import {IoWarning} from 'react-icons/io5'
 import classNames from 'classnames'
 import toast from 'react-hot-toast'
 import {useBoolean, useEventTarget} from 'ahooks'
@@ -91,6 +94,7 @@ const OptionsPage = () => {
   const [transDisplayValue, setTransDisplayValue] = useState(envData.transDisplay)
   const [wordsValue, setWordsValue] = useState<number | undefined>(envData.words)
   const [fetchAmountValue, setFetchAmountValue] = useState(envData.fetchAmount??TRANSLATE_FETCH_DEFAULT)
+  const [shadowUserBufferValue, setShadowUserBufferValue] = useState(envData.shadowUserBuffer ?? SHADOW_USER_BUFFER_DEFAULT)
   const [promptsFold, {toggle: togglePromptsFold}] = useBoolean(true)
   const [promptsValue, setPromptsValue] = useState<{[key: string]: string}>(envData.prompts??{})
   // const wordsList = useMemo(() => {
@@ -141,6 +145,7 @@ const OptionsPage = () => {
       cnSearchEnabled: cnSearchEnabledValue,
       askEnabled: askEnabledValue,
       chapterMode: chapterModeValue,
+      shadowUserBuffer: shadowUserBufferValue,
     }))
     toast.success('保存成功')
     sendExtension(null, 'CLOSE_SIDE_PANEL')
@@ -148,7 +153,7 @@ const OptionsPage = () => {
     setTimeout(() => {
       window.close()
     }, 3000)
-  }, [dispatch, sendExtension, sidePanelValue, autoInsertValue, autoExpandValue, apiKeyValue, serverUrlValue, modelValue, customModelValue, customModelTokensValue, translateEnableValue, languageValue, hideOnDisableAutoTranslateValue, themeValue, transDisplayValue, summarizeEnableValue, summarizeFloatValue, summarizeLanguageValue, wordsValue, fetchAmountValue, fontSizeValue, promptsValue, searchEnabledValue, cnSearchEnabledValue, askEnabledValue, chapterModeValue])
+  }, [dispatch, sendExtension, sidePanelValue, autoInsertValue, autoExpandValue, apiKeyValue, serverUrlValue, modelValue, customModelValue, customModelTokensValue, translateEnableValue, languageValue, hideOnDisableAutoTranslateValue, themeValue, transDisplayValue, summarizeEnableValue, summarizeFloatValue, summarizeLanguageValue, wordsValue, fetchAmountValue, fontSizeValue, promptsValue, searchEnabledValue, cnSearchEnabledValue, askEnabledValue, chapterModeValue, shadowUserBufferValue])
 
   const onCancel = useCallback(() => {
     window.close()
@@ -372,6 +377,28 @@ const OptionsPage = () => {
           <input id='askEnabled' type='checkbox' className='toggle toggle-primary' checked={askEnabledValue}
                  onChange={setAskEnabledValue}/>
         </FormItem>
+      </OptionCard>
+
+      <OptionCard title={<div className='flex items-center'>
+        影子跟练配置
+      </div>}>
+        <FormItem title='跟读缓冲' tip='视频播放完一句后，给用户复读的时间（秒）'>
+          <div className='flex items-center gap-2'>
+            <input
+              type='range'
+              min={SHADOW_USER_BUFFER_MIN}
+              max={SHADOW_USER_BUFFER_MAX}
+              value={shadowUserBufferValue}
+              onChange={(e) => setShadowUserBufferValue(parseInt(e.target.value))}
+              className='range range-primary range-sm flex-1'
+            />
+            <span className='text-sm font-mono w-12 text-center'>{shadowUserBufferValue}秒</span>
+          </div>
+        </FormItem>
+        <div className='desc text-xs mt-1 px-4'>
+          提示：视频播放完当前字幕后，会暂停 X+缓冲秒 供您复读，然后自动播放下一句。<br/>
+          X = 当前字幕的时间长度
+        </div>
       </OptionCard>
 
       <OptionCard title='提示词配置'>

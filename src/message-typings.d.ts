@@ -73,9 +73,63 @@ interface InjectDownloadAudioMessage extends InjectMessage<{}> {
   method: 'DOWNLOAD_AUDIO'
 }
 
-export type AllInjectMessages = InjectToggleDisplayMessage | InjectFoldMessage | InjectMoveMessage | InjectGetSubtitleMessage | InjectGetVideoStatusMessage | InjectGetVideoElementInfoMessage | InjectRefreshVideoInfoMessage | InjectUpdateTransResultMessage | InjectHideTransMessage | InjectPlayMessage | InjectDownloadAudioMessage
+// 影子跟练模式消息
+interface InjectShadowLoopMessage extends InjectMessage<{
+  enabled: boolean
+  startTime: number
+  endTime: number
+  loopCount: number
+  mode?: 'loop' | 'echo'
+  userBuffer?: number
+  currentIdx?: number
+  totalCount?: number
+}> {
+  method: 'SHADOW_LOOP'
+}
 
-// app
+interface InjectShadowExitMessage extends InjectMessage<{}> {
+  method: 'SHADOW_EXIT'
+}
+
+// 跟读模式暂停完成通知（inject -> app）
+interface InjectShadowEchoDoneMessage extends InjectMessage<{
+  completedIdx: number
+  nextStartTime: number
+}> {
+  method: 'SHADOW_ECHO_DONE'
+}
+
+// 遮罩功能消息
+interface InjectMaskMessage extends InjectMessage<{
+  visible: boolean
+  settings?: MaskSettings
+}> {
+  method: 'MASK'
+}
+
+interface InjectGetMaskSettingsMessage extends InjectMessage<{}> {
+  method: 'GET_MASK_SETTINGS'
+}
+
+interface InjectUpdateMaskSettingsMessage extends InjectMessage<{
+  width?: number
+  height?: number
+  top?: number
+  left?: number
+}> {
+  method: 'UPDATE_MASK_SETTINGS'
+}
+
+export type AllInjectMessages = InjectToggleDisplayMessage | InjectFoldMessage | InjectMoveMessage | InjectGetSubtitleMessage | InjectGetVideoStatusMessage | InjectGetVideoElementInfoMessage | InjectRefreshVideoInfoMessage | InjectUpdateTransResultMessage | InjectHideTransMessage | InjectPlayMessage | InjectDownloadAudioMessage | InjectShadowLoopMessage | InjectShadowExitMessage | InjectShadowEchoDoneMessage | InjectMaskMessage | InjectGetMaskSettingsMessage | InjectUpdateMaskSettingsMessage
+
+// app (also includes messages received from inject)
+interface AppShadowEchoDoneMessage extends AppMessage<{
+  completedIdx: number
+  nextStartTime: number
+}> {
+  method: 'SHADOW_ECHO_DONE'
+}
+
 interface AppSetInfosMessage extends AppMessage<{ infos: any }> {
   method: 'SET_INFOS'
 }
@@ -84,4 +138,4 @@ interface AppSetVideoInfoMessage extends AppMessage<{ url: string, title: string
   method: 'SET_VIDEO_INFO'
 }
 
-export type AllAPPMessages = AppSetInfosMessage | AppSetVideoInfoMessage
+export type AllAPPMessages = AppSetInfosMessage | AppSetVideoInfoMessage | AppShadowEchoDoneMessage

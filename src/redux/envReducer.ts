@@ -1,6 +1,6 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit'
 import {find, findIndex} from 'lodash-es'
-import {DEFAULT_SERVER_URL_OPENAI, TOTAL_HEIGHT_DEF} from '../consts/const'
+import {DEFAULT_SERVER_URL_OPENAI, MASK_DEFAULT_HEIGHT, MASK_DEFAULT_LEFT, MASK_DEFAULT_TOP, MASK_DEFAULT_WIDTH, TOTAL_HEIGHT_DEF} from '../consts/const'
 
 interface EnvState {
   envData: EnvData
@@ -52,6 +52,18 @@ interface EnvState {
 
   // 当前视频是否计算过操作
   reviewAction: boolean
+
+  // 影子跟练模式
+  shadowMode: boolean                    // 跟练模式开关
+  shadowModeType: 'loop' | 'echo'       // 跟练模式类型（保留但不再由按钮设置）
+  shadowCurIdx: number | null           // 当前循环的句子索引
+  shadowLoopCount: number                // 当前句循环次数 (-1=无限)
+  shadowLoopProgress: number            // 已练习句数
+  shadowStartTime: number | null         // 跟练开始时间
+  shadowSpecialMode: 'none' | 'infinite' | 'oneShot' // 当前特殊模式：none=普通, infinite=左键无限循环, oneShot=右键播完暂停
+
+  // 遮罩功能
+  maskSettings: MaskSettings              // 遮罩设置
 }
 
 const initialState: EnvState = {
@@ -65,6 +77,8 @@ const initialState: EnvState = {
   },
   tempData: {
     curSummaryType: 'overview',
+    shadowMiniMode: false,
+    shadowShowHelp: false,
   },
   totalHeight: TOTAL_HEIGHT_DEF,
   autoScroll: true,
@@ -81,6 +95,23 @@ const initialState: EnvState = {
   asks: [],
 
   reviewAction: false,
+
+  shadowMode: false,
+  shadowModeType: 'loop',
+  shadowCurIdx: null,
+  shadowLoopCount: -1,
+  shadowLoopProgress: 0,
+  shadowStartTime: null,
+  shadowSpecialMode: 'none',
+
+  // 遮罩功能
+  maskSettings: {
+    width: MASK_DEFAULT_WIDTH,
+    height: MASK_DEFAULT_HEIGHT,
+    top: MASK_DEFAULT_TOP,
+    left: MASK_DEFAULT_LEFT,
+    hasBeenSet: false,
+  },
 }
 
 export const slice = createSlice({
@@ -278,6 +309,58 @@ export const slice = createSlice({
     setChapters: (state, action: PayloadAction<Chapter[]>) => {
       state.chapters = action.payload
     },
+
+    // 影子跟练模式
+    setShadowMode: (state, action: PayloadAction<boolean>) => {
+      state.shadowMode = action.payload
+      if (!action.payload) {
+        state.shadowCurIdx = null
+        state.shadowLoopCount = -1
+        state.shadowStartTime = null
+        state.shadowSpecialMode = 'none'
+      } else {
+        state.shadowStartTime = Date.now()
+      }
+    },
+    setShadowCurIdx: (state, action: PayloadAction<number | null>) => {
+      state.shadowCurIdx = action.payload
+      if (action.payload !== null && state.shadowCurIdx === null) {
+        state.shadowLoopProgress = 1
+      } else if (action.payload !== null) {
+        state.shadowLoopProgress = (state.shadowLoopProgress || 0) + 1
+      }
+    },
+    setShadowLoopCount: (state, action: PayloadAction<number>) => {
+      state.shadowLoopCount = action.payload
+    },
+    setShadowModeType: (state, action: PayloadAction<'loop' | 'echo'>) => {
+      state.shadowModeType = action.payload
+    },
+    setShadowLoopProgress: (state, action: PayloadAction<number>) => {
+      state.shadowLoopProgress = action.payload
+    },
+    setShadowStartTime: (state, action: PayloadAction<number | null>) => {
+      state.shadowStartTime = action.payload
+    },
+    setShadowSpecialMode: (state, action: PayloadAction<'none' | 'infinite' | 'oneShot'>) => {
+      state.shadowSpecialMode = action.payload
+    },
+    setShadowAll: (state, action: PayloadAction<{
+      mode?: boolean
+      curIdx?: number | null
+      loopCount?: number
+    }>) => {
+      if (action.payload.mode !== undefined) {
+        state.shadowMode = action.payload.mode
+      }
+      if (action.payload.curIdx !== undefined) {
+        state.shadowCurIdx = action.payload.curIdx
+      }
+      if (action.payload.loopCount !== undefined) {
+        state.shadowLoopCount = action.payload.loopCount
+      }
+    },
+
     setInfos: (state, action: PayloadAction<any[]>) => {
       state.infos = action.payload
     },
@@ -301,6 +384,24 @@ export const slice = createSlice({
     },
     setInputting: (state, action: PayloadAction<boolean>) => {
       state.inputting = action.payload
+    },
+
+    // 遮罩功能
+    setMaskSettings: (state, action: PayloadAction<Partial<MaskSettings>>) => {
+      state.maskSettings = {
+        ...state.maskSettings,
+        ...action.payload,
+      }
+    },
+    setMaskVisible: (state, action: PayloadAction<boolean>) => {
+      if (state.tempData) {
+        state.tempData.maskVisible = action.payload
+      }
+    },
+    setMaskSettingsVisible: (state, action: PayloadAction<boolean>) => {
+      if (state.tempData) {
+        state.tempData.maskSettingsVisible = action.payload
+      }
     },
   },
 })
@@ -351,6 +452,21 @@ export const {
   setCtime,
   setAuthor,
   setChapters,
+
+  // 影子跟练模式
+  setShadowMode,
+  setShadowModeType,
+  setShadowCurIdx,
+  setShadowLoopCount,
+  setShadowLoopProgress,
+  setShadowStartTime,
+  setShadowAll,
+  setShadowSpecialMode,
+
+  // 遮罩功能
+  setMaskSettings,
+  setMaskVisible,
+  setMaskSettingsVisible,
 } = slice.actions
 
 export default slice.reducer

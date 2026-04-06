@@ -2,18 +2,23 @@ import {MutableRefObject, useCallback, useEffect, useMemo, useRef} from 'react'
 import {useAppDispatch, useAppSelector} from '../hooks/redux'
 import {setFloatKeyPointsSegIdx, setSegmentFold, setTempData} from '../redux/envReducer'
 import classNames from 'classnames'
-import {FaClipboardList, FaComments} from 'react-icons/fa'
+import {FaClipboardList} from 'react-icons/fa'
 import {SUMMARIZE_THRESHOLD, SUMMARIZE_TYPES} from '../consts/const'
 import useTranslate from '../hooks/useTranslate'
-import {BsDashSquare, BsPlusSquare, CgFileDocument, FaQuestion, GrOverview, RiFileCopy2Line} from 'react-icons/all'
+import {FaQuestion} from 'react-icons/fa'
+import {BsDashSquare, BsPlusSquare} from 'react-icons/bs'
+import {CgFileDocument} from 'react-icons/cg'
+import {GrOverview} from 'react-icons/gr'
+import {RiFileCopy2Line} from 'react-icons/ri'
 import toast from 'react-hot-toast'
 import {getLastTime, getSummaryStr, isSummaryEmpty, parseStrTimeToSeconds} from '../utils/bizUtil'
 import {useInViewport} from 'ahooks'
 import SegmentItem from './SegmentItem'
 import {stopPopFunc} from '../utils/util'
 import useSubtitle from '../hooks/useSubtitle'
-import DebateChat from './DebateChat'
 import { RootState } from '../store'
+import Wordbook from './Wordbook'
+import {BsFillBookmarkFill} from 'react-icons/bs'
 
 const SummarizeItemOverview = (props: {
   segment: Segment
@@ -115,8 +120,10 @@ const Summarize = (props: {
             <div className={classNames('font-normal', fontSize === 'large' ? 'text-sm' : 'text-xs')}>{question.a}</div>
           </div>)}
         </div>}
-      {summary?.type === 'debate' && (summary.content != null) &&
-        <DebateChat messages={summary.content} />}
+      {summary?.type === 'wordbook' && (
+        <div className='w-full max-w-[90%]'>
+          <Wordbook />
+        </div>)}
     </div>
     <div className='flex flex-col justify-center items-center'>
       {segment.text.length < SUMMARIZE_THRESHOLD && <div className='desc-lighter text-xs'>文字过短，无法总结.</div>}
@@ -220,9 +227,9 @@ const SegmentCard = (props: {
     }))
   }, [dispatch])
 
-  const onSelDebate = useCallback(() => {
+  const onSelWordbook = useCallback(() => {
     dispatch(setTempData({
-      curSummaryType: 'debate'
+      curSummaryType: 'wordbook'
     }))
   }, [dispatch])
 
@@ -245,7 +252,7 @@ const SegmentCard = (props: {
         <a className={classNames('tab tab-lifted tab-xs', curSummaryType === 'overview' && 'tab-active')} onClick={onSelOverview}><GrOverview/>概览</a>
         <a className={classNames('tab tab-lifted tab-xs', curSummaryType === 'keypoint' && 'tab-active')} onClick={onSelKeypoint}><FaClipboardList/>要点</a>
         <a className={classNames('tab tab-lifted tab-xs', curSummaryType === 'question' && 'tab-active')} onClick={onSelQuestion}><FaQuestion/>问题</a>
-        <a className={classNames('tab tab-lifted tab-xs', curSummaryType === 'debate' && 'tab-active')} onClick={onSelDebate}><FaComments/>辩论</a>
+        <a className={classNames('tab tab-lifted tab-xs', curSummaryType === 'wordbook' && 'tab-active')} onClick={onSelWordbook}><BsFillBookmarkFill/>生词本</a>
         <a className="tab tab-lifted tab-xs tab-disabled cursor-default"></a>
       </div>}
       <div

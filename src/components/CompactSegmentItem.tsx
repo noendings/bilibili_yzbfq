@@ -16,13 +16,19 @@ const CompactSegmentItem = (props: {
   const envData = useAppSelector(state => state.env.envData)
   const fontSize = useAppSelector(state => state.env.envData.fontSize)
   const autoTranslate = useAppSelector(state => state.env.autoTranslate)
+  const shadowMode = useAppSelector(state => state.env.shadowMode)
+  const shadowCurIdx = useAppSelector(state => state.env.shadowCurIdx)
   const transText = useMemo(() => getTransText(transResult, envData.hideOnDisableAutoTranslate, autoTranslate), [autoTranslate, envData.hideOnDisableAutoTranslate, transResult])
   const display = useMemo(() => getDisplay(envData.transDisplay, item.content, transText), [envData.transDisplay, item.content, transText])
 
+  const isShadowCurrent = shadowMode && shadowCurIdx === idx
+
   return <div className={classNames('inline', fontSize === 'large'?'text-sm':'text-xs')}>
-    <span className={'pl-1 pr-0.5 py-0.5 cursor-pointer rounded-sm hover:bg-base-200'} onClick={moveCallback} onDoubleClick={move2Callback}>
-      <text className={classNames('font-medium', isIn ? 'text-primary underline' : '')}>{display.main}</text>
-      {display.sub && <text className='desc'>({display.sub})</text>}</span>
+    <span className={classNames('pl-1 pr-0.5 py-0.5 cursor-pointer rounded-sm hover:bg-base-200', isShadowCurrent && 'bg-primary/20')}
+          onClick={moveCallback} onDoubleClick={move2Callback}>
+      <text className={classNames('font-medium', isIn ? 'text-primary underline' : '', isShadowCurrent && 'text-primary')}>{display.main}</text>
+      {display.sub && <text className='desc'>({display.sub})</text>}
+    </span>
     <span className='text-base-content/75'>{!last && ','}</span>
   </div>
 }

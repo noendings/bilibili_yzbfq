@@ -8,6 +8,7 @@ export const IFRAME_ID = 'bilibili-subtitle-iframe'
 
 export const STORAGE_ENV = 'bilibili-subtitle_env'
 export const STORAGE_TEMP = 'bilibili-subtitle_temp'
+export const STORAGE_WORD_BOOK = 'bilibili-subtitle_wordbook'
 
 export const PROMPT_TYPE_TRANSLATE = 'translate'
 export const PROMPT_TYPE_SUMMARIZE_OVERVIEW = 'summarize_overview'
@@ -69,6 +70,11 @@ export const SUMMARIZE_TYPES = {
     desc: '辩论',
     downloadName: '💡辩论💡',
     promptType: PROMPT_TYPE_SUMMARIZE_DEBATE,
+  },
+  wordbook: {
+    name: '生词本',
+    desc: '收藏句子',
+    downloadName: '📖生词本📖',
   },
 }
 
@@ -367,3 +373,22 @@ export const LANGUAGES_MAP: {[key: string]: typeof LANGUAGES[number]} = {}
 for (const language of LANGUAGES) {
   LANGUAGES_MAP[language.code] = language
 }
+
+// 影子跟练模式常量
+export const SHADOW_MODE_LOOP_DEFAULT = -1  // 默认无限循环
+export const SHADOW_MODE_LOOP_MIN = 1
+export const SHADOW_MODE_LOOP_MAX = 10
+export const SHADOW_BREATH_DURATION = 2000  // 呼吸灯周期(ms)
+export const SHADOW_HELP_AUTO_HIDE = 3000  // 快捷键帮助自动隐藏时间(ms)
+export const SHADOW_USER_BUFFER_DEFAULT = 4  // 默认用户缓冲时间（秒）
+export const SHADOW_USER_BUFFER_MIN = 1
+export const SHADOW_USER_BUFFER_MAX = 10
+
+// 遮罩功能常量
+export const MASK_ID = 'bilibili-subtitle-mask'
+export const MASK_STORAGE_KEY = 'bilibili-subtitle-mask-settings'
+export const MASK_DEFAULT_WIDTH = 790  // 默认宽度(px)
+export const MASK_DEFAULT_HEIGHT = 50  // 默认高度(px)
+export const MASK_DEFAULT_TOP = 550  // 默认上边距(px)
+export const MASK_DEFAULT_LEFT = 100  // 默认左边距(px)
+export const MASK_STEP = 10  // 调整步长(px)

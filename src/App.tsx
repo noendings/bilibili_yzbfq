@@ -1,9 +1,9 @@
-import React, {useCallback, useMemo} from 'react'
+import React, {useCallback, useMemo, useEffect} from 'react'
 import 'tippy.js/dist/tippy.css'
 import {useAppDispatch, useAppSelector} from './hooks/redux'
-import {setEnvData, setEnvReady, setTempData, setTempReady} from './redux/envReducer'
+import {setEnvData, setEnvReady, setTempData, setTempReady, setMaskSettings} from './redux/envReducer'
 import {cloneDeep} from 'lodash-es'
-import {STORAGE_ENV, STORAGE_TEMP} from './consts/const'
+import {STORAGE_ENV, STORAGE_TEMP, MASK_STORAGE_KEY, MASK_DEFAULT_WIDTH, MASK_DEFAULT_HEIGHT, MASK_DEFAULT_TOP, MASK_DEFAULT_LEFT} from './consts/const'
 import OptionsPage from './pages/OptionsPage'
 import {handleJson} from './utils/util'
 import {Toaster} from 'react-hot-toast'
@@ -42,6 +42,30 @@ function App() {
     dispatch(setTempReady())
   }, [dispatch])
   useLocalStorage<TempData>('chrome_client', STORAGE_TEMP, savedTempData, onLoadTemp)
+
+  // 加载遮罩设置
+  useEffect(() => {
+    if (tempReady) {
+      const loadMaskSettings = async () => {
+        try {
+          const result = await chrome.storage.sync.get(MASK_STORAGE_KEY)
+          if (result[MASK_STORAGE_KEY]) {
+            const saved = JSON.parse(result[MASK_STORAGE_KEY])
+            dispatch(setMaskSettings({
+              width: saved.width ?? MASK_DEFAULT_WIDTH,
+              height: saved.height ?? MASK_DEFAULT_HEIGHT,
+              top: saved.top ?? MASK_DEFAULT_TOP,
+              left: saved.left ?? MASK_DEFAULT_LEFT,
+              hasBeenSet: saved.hasBeenSet ?? false,
+            }))
+          }
+        } catch (e) {
+          console.error('加载遮罩设置失败:', e)
+        }
+      }
+      loadMaskSettings()
+    }
+  }, [tempReady, dispatch])
 
   // services
   useMessageService()

@@ -1,11 +1,25 @@
-import {IoIosArrowUp} from 'react-icons/all'
-import {useCallback} from 'react'
+import {IoIosArrowUp} from 'react-icons/io'
+import {useCallback, useMemo} from 'react'
 import {useAppDispatch, useAppSelector} from '../hooks/redux'
 import {find, remove} from 'lodash-es'
-import {setCurFetched, setCurInfo, setData, setInfos, setUploadedTranscript} from '../redux/envReducer'
+import {
+  setCurFetched,
+  setCurInfo,
+  setData,
+  setInfos,
+  setUploadedTranscript,
+  setShadowMode,
+  setShadowCurIdx,
+  setMaskSettingsVisible,
+  setTempData,
+  setMaskSettings,
+} from '../redux/envReducer'
 import MoreBtn from './MoreBtn'
 import classNames from 'classnames'
 import {parseTranscript} from '../utils/bizUtil'
+import {useMessage} from '@/hooks/useMessageService'
+import {MASK_DEFAULT_HEIGHT, MASK_DEFAULT_LEFT, MASK_DEFAULT_TOP, MASK_DEFAULT_WIDTH} from '@/consts/const'
+import {MdVisibility, MdVisibilityOff, MdSettings} from 'react-icons/md'
 
 const Header = (props: {
   foldCallback: () => void
@@ -17,6 +31,52 @@ const Header = (props: {
   const fold = useAppSelector(state => state.env.fold)
   const uploadedTranscript = useAppSelector(state => state.env.uploadedTranscript)
   const envData = useAppSelector(state => state.env.envData)
+  const shadowMode = useAppSelector(state => state.env.shadowMode)
+  const shadowLoopCount = useAppSelector(state => state.env.shadowLoopCount)
+  const data = useAppSelector(state => state.env.data)
+  const curIdx = useAppSelector(state => state.env.curIdx)
+  const maskSettings = useAppSelector(state => state.env.maskSettings)
+  const {sendInject} = useMessage(!!envData.sidePanel)
+
+  // 遮罩功能 - 显示遮罩
+  const onShowMask = useCallback(async (e: any) => {
+    e.stopPropagation()
+    // 检查是否设置过
+    if (!maskSettings.hasBeenSet) {
+      // 首次使用，打开设置界面
+      dispatch(setMaskSettingsVisible(true))
+      dispatch(setTempData({ maskVisible: false }))
+    } else {
+      // 已设置过，直接显示
+      dispatch(setTempData({ maskVisible: true }))
+      await sendInject(null, 'MASK', {
+        visible: true,
+        settings: maskSettings,
+      })
+    }
+  }, [dispatch, maskSettings, sendInject])
+
+  // 遮罩功能 - 隐藏遮罩
+  const onHideMask = useCallback(async (e: any) => {
+    e.stopPropagation()
+    dispatch(setTempData({ maskVisible: false }))
+    await sendInject(null, 'MASK', {
+      visible: false,
+    })
+  }, [dispatch, sendInject])
+
+  // 遮罩功能 - 打开设置
+  const onOpenMaskSettings = useCallback(async (e: any) => {
+    e.stopPropagation()
+    // 先显示遮罩
+    dispatch(setTempData({ maskVisible: true }))
+    await sendInject(null, 'MASK', {
+      visible: true,
+      settings: maskSettings,
+    })
+    // 打开设置界面
+    dispatch(setMaskSettingsVisible(true))
+  }, [dispatch, maskSettings, sendInject])
 
   const upload = useCallback(() => {
     const input = document.createElement('input')
@@ -77,17 +137,97 @@ const Header = (props: {
     upload()
   }, [upload])
 
-  return <div className='rounded-[6px] bg-[#f1f2f3] dark:bg-base-100 h-[44px] flex justify-between items-center cursor-pointer' onClick={() => {
+  // 影子跟练模式切换（唯一入口，不再区分循环/跟读子按钮）
+  const onShadowModeToggle = useCallback((e: any) => {
+    e.stopPropagation()
+    const newMode = !shadowMode
+    dispatch(setShadowMode(newMode))
+    if (newMode && data && curIdx !== undefined) {
+      dispatch(setShadowCurIdx(curIdx))
+      const item = data.body[curIdx]
+      const nextItem = data.body[curIdx + 1]
+      if (item) {
+        sendInject(null, 'SHADOW_LOOP', {
+          enabled: true,
+          startTime: item.from,
+          endTime: nextItem ? nextItem.from : item.to,
+          loopCount: shadowLoopCount,
+          mode: 'loop',
+          userBuffer: envData.shadowUserBuffer ?? 4,
+        })
+      }
+    } else if (!newMode) {
+      sendInject(null, 'SHADOW_EXIT', {})
+    }
+  }, [shadowMode, dispatch, data, curIdx, shadowLoopCount, sendInject, envData.shadowUserBuffer])
+
+
+  // 呼吸灯效果
+  const breathClass = useMemo(() => {
+    if (!shadowMode) return ''
+    return 'animate-pulse'
+  }, [shadowMode])
+
+  return <div className={classNames('rounded-[6px] bg-[#f1f2f3] dark:bg-base-100 h-[44px] flex justify-between items-center cursor-pointer',
+    shadowMode && 'border-2 border-primary shadow-lg shadow-primary/30')} onClick={() => {
     if (!envData.sidePanel) {
       foldCallback()
     }
   }}>
     <div className='shrink-0 flex items-center'>
       {/* <img src="bibijun.png" alt="Logo" className="w-auto h-6 ml-2 mr-1" /> */}
-      <span className='shrink-0 text-[15px] font-medium pl-[16px] pr-[14px]'>字幕列表</span>
+      <span className='shrink-0 text-[15px] font-medium pl-[16px] pr-[14px]'>
+        {shadowMode && <span className='text-primary mr-1'>🎵</span>}
+        字幕列表
+      </span>
       <MoreBtn placement={'right-start'}/>
     </div>
     <div className='flex gap-0.5 items-center mr-[16px]'>
+      {/* 遮罩功能按钮 */}
+      <div className='dropdown dropdown-end'>
+        <label tabIndex={0} className='btn btn-xs btn-ghost mr-1'>
+          🖼️ 遮罩
+        </label>
+        <ul tabIndex={0} className='dropdown-content z-[100] menu p-2 shadow bg-base-100 rounded-box w-40'>
+          <li>
+            <a onClick={onShowMask} className='flex items-center gap-2'>
+              <MdVisibility className='text-primary' />
+              显示遮罩
+            </a>
+          </li>
+          <li>
+            <a onClick={onHideMask} className='flex items-center gap-2'>
+              <MdVisibilityOff className='text-gray-500' />
+              隐藏遮罩
+            </a>
+          </li>
+          <li>
+            <a onClick={onOpenMaskSettings} className='flex items-center gap-2'>
+              <MdSettings className='text-info' />
+              设置遮罩
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      {/* 影子跟练模式按钮 */}
+      <button
+        className={classNames('btn btn-xs mr-1', shadowMode ? 'btn-error' : 'btn-primary')}
+        title={shadowMode ? '跟练模式中' : '开启跟练模式'}
+        onClick={(e: any) => {
+          e.stopPropagation()
+          onShadowModeToggle(e)
+        }}
+      >
+        {shadowMode ? '⏹ 跟练中' : '🎵 跟练'}
+      </button>
+      {shadowMode && (
+        <div className='text-xs desc mr-1'>
+          <span>←无限循环</span>
+          <span className='mx-0.5'>|</span>
+          <span>→播完暂停</span>
+        </div>
+      )}
       {(infos == null) || infos.length <= 0
         ?<div className='text-xs desc'>
           <button className='btn btn-xs btn-link' onClick={onUpload}>上传(vtt/srt)</button>

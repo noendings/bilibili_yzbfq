@@ -40,6 +40,9 @@ interface EnvData {
   // ask
   askEnabled?: boolean
 
+  // 影子跟练模式
+  shadowUserBuffer?: number  // 用户缓冲时间（秒）
+
   prompts?: {
     [key: string]: string
   }
@@ -51,6 +54,23 @@ interface TempData {
   compact?: boolean // 是否紧凑视图
   reviewActions?: number // 点击或总结行为达到一定次数后，显示评分（一个视频最多只加1次）
   reviewed?: boolean // 是否点击过评分,undefined: 不显示；true: 已点击；false: 未点击(需要显示)
+
+  // 影子跟练模式
+  shadowMiniMode?: boolean // 迷你模式开关
+  shadowShowHelp?: boolean // 是否显示快捷键帮助
+
+  // 遮罩功能
+  maskVisible?: boolean      // 遮罩是否可见
+  maskSettingsVisible?: boolean  // 遮罩设置界面是否可见
+}
+
+// 遮罩设置
+interface MaskSettings {
+  width: number   // 宽度(px)
+  height: number  // 高度(px)
+  top: number     // 上边距(px)
+  left: number    // 左边距(px)
+  hasBeenSet?: boolean  // 是否已经设置过
 }
 
 interface TaskDef {
@@ -158,7 +178,7 @@ interface BriefSummary extends Summary {
 }
 
 type SummaryStatus = 'init' | 'pending' | 'done'
-type SummaryType = 'overview' | 'keypoint' | 'brief' | 'question' | 'debate'
+type SummaryType = 'overview' | 'keypoint' | 'brief' | 'question' | 'debate' | 'wordbook'
 
 interface DebateMessage {
   side: 'pro' | 'con'
@@ -167,4 +187,13 @@ interface DebateMessage {
 
 interface DebateProps {
   messages: DebateMessage[]
+}
+
+interface WordbookItem {
+  id: string
+  content: string
+  videoUrl?: string
+  videoTitle?: string
+  createdAt: number
+  note?: string
 }

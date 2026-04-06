@@ -12,13 +12,13 @@ const useMessageService = () => {
   const methodsFunc: () => {
     [K in AllAPPMessages['method']]: (params: Extract<AllAPPMessages, { method: K }>['params'], context: MethodContext) => Promise<any>
   } = useMemoizedFn(() => ({
-    SET_INFOS: async (params, context: MethodContext) => {
+    SET_INFOS: async (params: { infos: any }, context: MethodContext) => {
       dispatch(setInfos(params.infos))
       dispatch(setCurInfo(undefined))
       dispatch(setCurFetched(false))
       dispatch(setData(undefined))
     },
-    SET_VIDEO_INFO: async (params, context: MethodContext) => {
+    SET_VIDEO_INFO: async (params: { chapters?: any; infos: any; url: string; title: string; ctime: number | null; author?: string; pages: any; aid: number | null }, context: MethodContext) => {
       dispatch(setChapters(params.chapters))
       dispatch(setInfos(params.infos))
       dispatch(setUrl(params.url))
@@ -26,6 +26,9 @@ const useMessageService = () => {
       dispatch(setCtime(params.ctime))
       dispatch(setAuthor(params.author))
       console.debug('video title: ', params.title)
+    },
+    SHADOW_ECHO_DONE: async (params: { completedIdx: number; nextStartTime: number }, context: MethodContext) => {
+      return params
     },
   }))
 

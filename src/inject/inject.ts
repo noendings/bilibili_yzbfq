@@ -1,4 +1,4 @@
-import { TOTAL_HEIGHT_DEF, HEADER_HEIGHT, TOTAL_HEIGHT_MIN, TOTAL_HEIGHT_MAX, IFRAME_ID, STORAGE_ENV, DEFAULT_USE_PORT } from '@/consts/const'
+import { TOTAL_HEIGHT_DEF, HEADER_HEIGHT, TOTAL_HEIGHT_MIN, TOTAL_HEIGHT_MAX, IFRAME_ID, STORAGE_ENV, DEFAULT_USE_PORT, MASK_ID, MASK_STORAGE_KEY, MASK_DEFAULT_WIDTH, MASK_DEFAULT_HEIGHT, MASK_DEFAULT_TOP, MASK_DEFAULT_LEFT } from '@/consts/const'
 import { AllExtensionMessages, AllInjectMessages, AllAPPMessages } from '@/message-typings'
 import { InjectMessaging } from '../message'
 
@@ -41,11 +41,44 @@ const debug = (...args: any[]) => {
 
     showTrans: boolean
     curTrans?: string
+
+    // 影子跟练模式
+    shadowLoop: {
+      startTime: number
+      endTime: number
+      loopCount: number
+      remainingLoops: number
+      mode: 'loop' | 'echo'  // loop=循环模式, echo=跟读模式
+      userBuffer: number  // 用户缓冲时间（秒）
+      sentenceDuration: number  // 当前句子时长（秒）
+      pausedForUser: boolean  // 是否暂停等待用户
+      pauseStartTime: number | null  // 暂停开始时间
+      currentIdx: number  // 当前句子索引（跟读模式用）
+      totalCount: number  // 总句子数
+    } | null
+
+    // 遮罩功能
+    maskElement?: HTMLDivElement
+    maskVisible: boolean
+    maskSettings: {
+      width: number
+      height: number
+      top: number
+      left: number
+    }
   } = {
     injectMessaging: new InjectMessaging(DEFAULT_USE_PORT),
     fold: true,
     videoElementHeight: TOTAL_HEIGHT_DEF,
     showTrans: false,
+    shadowLoop: null,
+    maskVisible: false,
+    maskSettings: {
+      width: MASK_DEFAULT_WIDTH,
+      height: MASK_DEFAULT_HEIGHT,
+      top: MASK_DEFAULT_TOP,
+      left: MASK_DEFAULT_LEFT,
+    },
   }
 
   const getVideoElement = () => {
@@ -273,6 +306,102 @@ const debug = (...args: any[]) => {
     }
   }
 
+  // 遮罩功能 - 创建遮罩
+  const createMaskElement = () => {
+    const existing = document.getElementById(MASK_ID)
+    if (existing) return existing
+
+    const mask = document.createElement('div')
+    mask.id = MASK_ID
+    mask.style.cssText = `
+      position: fixed;
+      background: rgba(0, 174, 236, 0.15);
+      border: 2px solid rgba(0, 174, 236, 0.6);
+      border-radius: 8px;
+      z-index: 99999;
+      cursor: move;
+      display: none;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
+    `
+    document.body.appendChild(mask)
+    runtime.maskElement = mask
+    return mask
+  }
+
+  // 遮罩功能 - 显示遮罩
+  const showMask = (settings?: typeof runtime.maskSettings) => {
+    const s = settings ?? runtime.maskSettings
+    const mask = runtime.maskElement ?? createMaskElement()
+
+    mask.style.width = `${s.width}px`
+    mask.style.height = `${s.height}px`
+    mask.style.top = `${s.top}px`
+    mask.style.left = `${s.left}px`
+    mask.style.display = 'block'
+    runtime.maskVisible = true
+  }
+
+  // 遮罩功能 - 隐藏遮罩
+  const hideMask = () => {
+    if (runtime.maskElement) {
+      runtime.maskElement.style.display = 'none'
+    }
+    runtime.maskVisible = false
+  }
+
+  // 遮罩功能 - 更新遮罩位置和大小
+  const updateMask = (newSettings: Partial<typeof runtime.maskSettings>) => {
+    runtime.maskSettings = { ...runtime.maskSettings, ...newSettings }
+    if (runtime.maskVisible) {
+      const mask = runtime.maskElement ?? createMaskElement()
+      if (newSettings.width !== undefined) mask.style.width = `${newSettings.width}px`
+      if (newSettings.height !== undefined) mask.style.height = `${newSettings.height}px`
+      if (newSettings.top !== undefined) mask.style.top = `${newSettings.top}px`
+      if (newSettings.left !== undefined) mask.style.left = `${newSettings.left}px`
+    }
+  }
+
+  // 从存储加载遮罩设置
+  const loadMaskSettings = async () => {
+    try {
+      const result = await chrome.storage.sync.get(MASK_STORAGE_KEY)
+      if (result[MASK_STORAGE_KEY]) {
+        const saved = JSON.parse(result[MASK_STORAGE_KEY])
+        runtime.maskSettings = {
+          width: saved.width ?? MASK_DEFAULT_WIDTH,
+          height: saved.height ?? MASK_DEFAULT_HEIGHT,
+          top: saved.top ?? MASK_DEFAULT_TOP,
+          left: saved.left ?? MASK_DEFAULT_LEFT,
+        }
+        // 如果已经设置过，显示遮罩
+        if (saved.hasBeenSet) {
+          showMask()
+        }
+      }
+    } catch (e) {
+      console.error('加载遮罩设置失败:', e)
+    }
+  }
+
+  // 保存遮罩设置
+  const saveMaskSettings = async (settings: typeof runtime.maskSettings, hasBeenSet: boolean = false) => {
+    try {
+      await chrome.storage.sync.set({
+        [MASK_STORAGE_KEY]: JSON.stringify({
+          ...settings,
+          hasBeenSet,
+        })
+      })
+    } catch (e) {
+      console.error('保存遮罩设置失败:', e)
+    }
+  }
+
+  // 初始化遮罩
+  createMaskElement()
+  loadMaskSettings()
+
   const methods: {
     [K in AllInjectMessages['method']]: (params: Extract<AllInjectMessages, { method: K }>['params'], context: MethodContext) => Promise<any>
   } = {
@@ -386,10 +515,199 @@ const debug = (...args: any[]) => {
         a.click()
       })
     },
+
+    // 影子跟练模式 - 单句循环
+    SHADOW_LOOP: async (params) => {
+      const video = getVideoElement()
+      if (video) {
+        // 清除之前的时间监听
+        video.onended = null
+        video.ontimeupdate = null
+
+        if (params.enabled) {
+          // 计算句子时长
+          const sentenceDuration = params.endTime - params.startTime
+
+          // 开始循环/跟读
+          runtime.shadowLoop = {
+            startTime: params.startTime,
+            endTime: params.endTime,
+            loopCount: params.loopCount,
+            remainingLoops: params.loopCount,
+            mode: params.mode || 'loop',
+            userBuffer: params.userBuffer || 4,
+            sentenceDuration,
+            pausedForUser: false,
+            pauseStartTime: null,
+            currentIdx: params.currentIdx ?? 0,
+            totalCount: params.totalCount ?? 0,
+          }
+
+          // 如果当前不在循环起点，跳过去并播放
+          if (Math.abs(video.currentTime - params.startTime) > 0.5) {
+            video.currentTime = params.startTime
+          }
+
+          // 确保播放
+          if (video.paused) {
+            video.play().catch(() => {})
+          }
+
+          // 使用 timeupdate 事件检测是否到达句子结束时间
+          video.ontimeupdate = () => {
+            if (!runtime.shadowLoop) return
+            const sl = runtime.shadowLoop
+
+            // 如果是跟读模式且已暂停等待用户，跳过时间检查
+            if (sl.pausedForUser) return
+
+            const currentTime = video.currentTime
+            // 检测是否到达或超过句子结束时间
+            if (currentTime >= sl.endTime - 0.1) {
+              if (sl.mode === 'loop') {
+                // 循环模式
+                if (sl.remainingLoops === -1 || sl.remainingLoops > 0) {
+                  // 回到句首
+                  video.currentTime = sl.startTime
+                  // 递减循环次数
+                  if (sl.remainingLoops > 0) {
+                    sl.remainingLoops--
+                  }
+                  // 确保继续播放
+                  if (video.paused) {
+                    video.play().catch(() => {})
+                  }
+                }
+              } else {
+                // 跟读模式 - 暂停等待用户
+                video.pause()
+                sl.pausedForUser = true
+                sl.pauseStartTime = Date.now()
+              }
+            }
+          }
+        } else {
+          // 停止循环
+          runtime.shadowLoop = null
+          video.onended = null
+          video.ontimeupdate = null
+        }
+      }
+    },
+
+    // 影子跟练模式 - 退出
+    SHADOW_EXIT: async (params) => {
+      const video = getVideoElement()
+      if (video) {
+        runtime.shadowLoop = null
+        video.onended = null
+        video.ontimeupdate = null
+      }
+    },
+
+    // 跟读模式暂停完成，通知面板切换下一句（这里实际上是路由到 app）
+    SHADOW_ECHO_DONE: async (params) => {
+      // 这个消息会被路由到 app 端处理
+      return params
+    },
+
+    // 遮罩功能 - 显示/隐藏遮罩
+    MASK: async (params) => {
+      const { visible, settings } = params
+
+      if (settings) {
+        runtime.maskSettings = { ...runtime.maskSettings, ...settings }
+      }
+
+      if (visible) {
+        // 显示遮罩
+        runtime.maskVisible = true
+        showMask(settings)
+        // 保存设置
+        await saveMaskSettings(runtime.maskSettings, true)
+      } else {
+        // 隐藏遮罩
+        runtime.maskVisible = false
+        hideMask()
+        // 保存设置，标记已设置过
+        await saveMaskSettings(runtime.maskSettings, true)
+      }
+    },
+
+    // 获取遮罩设置
+    GET_MASK_SETTINGS: async (params) => {
+      return {
+        settings: runtime.maskSettings,
+        visible: runtime.maskVisible,
+      }
+    },
+
+    // 更新遮罩设置（用于调整位置和大小）
+    UPDATE_MASK_SETTINGS: async (params) => {
+      const { width, height, top, left } = params
+      const newSettings = { ...runtime.maskSettings }
+      if (width !== undefined) newSettings.width = width
+      if (height !== undefined) newSettings.height = height
+      if (top !== undefined) newSettings.top = top
+      if (left !== undefined) newSettings.left = left
+      updateMask(newSettings)
+      runtime.maskSettings = newSettings
+      // 保存设置
+      await saveMaskSettings(newSettings, true)
+      return newSettings
+    },
   }
 
   // 初始化injectMessage
   runtime.injectMessaging.init(methods)
+
+    // 跟读模式定时检查 - 检测暂停时间是否到达
+  let echoNextTimer: ReturnType<typeof setTimeout> | null = null
+
+  const echoCheckInterval = setInterval(() => {
+    if (!runtime.shadowLoop || runtime.shadowLoop.mode !== 'echo' || !runtime.shadowLoop.pausedForUser) {
+      return
+    }
+
+    const sl = runtime.shadowLoop
+    const elapsed = (Date.now() - (sl.pauseStartTime ?? Date.now())) / 1000
+    const totalWait = sl.sentenceDuration + sl.userBuffer
+
+    if (elapsed >= totalWait && !echoNextTimer) {
+      // 时间到了，准备切换到下一句
+      const video = getVideoElement()
+      if (!video) return
+
+      const nextIdx = sl.currentIdx + 1
+      if (nextIdx >= sl.totalCount) {
+        // 没有下一句了，退出跟读模式
+        runtime.shadowLoop = null
+        return
+      }
+
+      // 延迟一下再跳转，确保状态稳定
+      echoNextTimer = setTimeout(() => {
+        echoNextTimer = null
+        if (!runtime.shadowLoop || runtime.shadowLoop.mode !== 'echo') return
+
+        // 跳到当前句子的结束时间（即下一句的开始）
+        video.currentTime = sl.endTime
+
+        // 清除暂停状态，等待面板发送新的 SHADOW_LOOP 命令
+        sl.pausedForUser = false
+        sl.pauseStartTime = null
+
+        // 通知面板当前句子完成，让面板更新 shadowCurIdx 并发送新命令
+        runtime.injectMessaging.sendApp(null, 'SHADOW_ECHO_DONE', {
+          completedIdx: sl.currentIdx,
+          nextStartTime: sl.endTime
+        }).catch(() => {})
+
+        // 继续播放
+        video.play().catch(() => {})
+      }, 100)
+    }
+  }, 100)
 
   setInterval(() => {
     if (!sidePanel) {
