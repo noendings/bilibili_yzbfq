@@ -74,11 +74,13 @@ const useKeyService = () => {
 
       // ← 左键：启动当前句无限循环
       if (isArrowLeft) {
-        if (shadowCurIdx !== null && shadowCurIdx >= 0) {
+        const effectiveIdx = shadowCurIdx ?? curIdx
+        if (effectiveIdx != null && effectiveIdx >= 0) {
           prevent = true
-          const item = data!.body[shadowCurIdx]
-          const nextItem = data!.body[shadowCurIdx + 1]
+          const item = data!.body[effectiveIdx]
+          const nextItem = data!.body[effectiveIdx + 1]
           move(item.from, false)
+          dispatch(setShadowCurIdx(effectiveIdx))
           dispatch(setShadowLoopCount(-1))
           dispatch(setShadowSpecialMode('infinite'))
           sendInject(null, 'SHADOW_LOOP', {
@@ -94,11 +96,13 @@ const useKeyService = () => {
 
       // → 右键：启动当前句播完暂停（one-shot echo）
       if (isArrowRight) {
-        if (shadowCurIdx !== null && shadowCurIdx >= 0) {
+        const effectiveIdx = shadowCurIdx ?? curIdx
+        if (effectiveIdx != null && effectiveIdx >= 0) {
           prevent = true
-          const item = data!.body[shadowCurIdx]
-          const nextItem = data!.body[shadowCurIdx + 1]
+          const item = data!.body[effectiveIdx]
+          const nextItem = data!.body[effectiveIdx + 1]
           move(item.from, false)
+          dispatch(setShadowCurIdx(effectiveIdx))
           dispatch(setShadowLoopCount(1))
           dispatch(setShadowModeType('echo'))
           dispatch(setShadowSpecialMode('oneShot'))
@@ -115,9 +119,10 @@ const useKeyService = () => {
 
       // ↑ 上一句
       if (e.key === 'ArrowUp') {
-        if (shadowCurIdx !== null && shadowCurIdx > 0) {
+        const effectiveIdx = shadowCurIdx ?? curIdx
+        if (effectiveIdx != null && effectiveIdx > 0) {
           prevent = true
-          const newIdx = shadowCurIdx - 1
+          const newIdx = effectiveIdx - 1
           dispatch(setShadowCurIdx(newIdx))
           if (data) {
             const item = data.body[newIdx]
@@ -137,9 +142,10 @@ const useKeyService = () => {
 
       // ↓ 下一句
       if (e.key === 'ArrowDown') {
-        if (shadowCurIdx !== null && shadowCurIdx < bodyCount - 1) {
+        const effectiveIdx = shadowCurIdx ?? curIdx
+        if (effectiveIdx != null && effectiveIdx < bodyCount - 1) {
           prevent = true
-          const newIdx = shadowCurIdx + 1
+          const newIdx = effectiveIdx + 1
           dispatch(setShadowCurIdx(newIdx))
           if (data) {
             const item = data.body[newIdx]
@@ -160,13 +166,14 @@ const useKeyService = () => {
       // W 增加循环次数（仅在特殊子模式下生效）
       if ((e.key === 'w' || e.key === 'W') && shadowSpecialMode !== 'none') {
         prevent = true
+        const effectiveIdx = shadowCurIdx ?? curIdx
         const current = shadowLoopCount === -1 ? SHADOW_MODE_LOOP_MAX : shadowLoopCount
         const newCount = Math.min(current + 1, SHADOW_MODE_LOOP_MAX)
         const finalCount = newCount === SHADOW_MODE_LOOP_MAX ? -1 : newCount
         dispatch(setShadowLoopCount(finalCount))
-        if (shadowCurIdx !== null && data) {
-          const item = data.body[shadowCurIdx]
-          const nextItem = data.body[shadowCurIdx + 1]
+        if (effectiveIdx != null && data) {
+          const item = data.body[effectiveIdx]
+          const nextItem = data.body[effectiveIdx + 1]
           sendInject(null, 'SHADOW_LOOP', {
             enabled: true,
             startTime: item.from,
@@ -181,12 +188,13 @@ const useKeyService = () => {
       // S 减少循环次数（仅在特殊子模式下生效）
       if ((e.key === 's' || e.key === 'S') && shadowSpecialMode !== 'none') {
         prevent = true
+        const effectiveIdx = shadowCurIdx ?? curIdx
         const current = shadowLoopCount === -1 ? SHADOW_MODE_LOOP_MAX : shadowLoopCount
         const newCount = Math.max(current - 1, SHADOW_MODE_LOOP_MIN)
         dispatch(setShadowLoopCount(newCount))
-        if (shadowCurIdx !== null && data) {
-          const item = data.body[shadowCurIdx]
-          const nextItem = data.body[shadowCurIdx + 1]
+        if (effectiveIdx != null && data) {
+          const item = data.body[effectiveIdx]
+          const nextItem = data.body[effectiveIdx + 1]
           sendInject(null, 'SHADOW_LOOP', {
             enabled: true,
             startTime: item.from,
